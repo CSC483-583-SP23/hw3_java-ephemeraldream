@@ -5,16 +5,13 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.*;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.*;
+import org.apache.lucene.search.similarities.ClassicSimilarity;
+import org.apache.lucene.search.similarities.Similarity;
+import org.apache.lucene.search.similarities.TFIDFSimilarity;
 import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
 import org.w3c.dom.Text;
@@ -218,14 +215,40 @@ public class QueryEngine {
     }
 
     public List<ResultClass> runQ1_3(String[] query) throws java.io.FileNotFoundException,java.io.IOException {
-
         if(!indexExists) {
             buildIndex();
         }
-        StringBuilder result = new StringBuilder("");
-        List<ResultClass>  ans=new ArrayList<ResultClass>();
-        ans =returnDummyResults(2);
-        return ans;
+        Query q;
+
+        ArrayList<ResultClass> results = new ArrayList<>();
+        int hitsPerPage = 10;
+        String str = Arrays.toString(query);
+        str = str.substring(1, str.length()-1);
+        try {
+            q = new QueryParser("text", analyzer).parse(str);
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
+        }
+        IndexReader reader = DirectoryReader.open(index);
+        IndexSearcher searcher = new IndexSearcher(reader);
+        ClassicSimilarity similarity = new ClassicSimilarity();
+        searcher.setSimilarity(similarity);
+
+        TopDocs docs = searcher.search(q, hitsPerPage);
+        ScoreDoc[] hits = docs.scoreDocs;
+        for (int i = 0; i < hits.length; i++) {
+            int id = hits[i].doc;
+            Document d = searcher.doc(id);
+            ResultClass resulted = new ResultClass();
+            resulted.DocName = d;
+            resulted.docScore = hits[i].score;
+            results.add(resulted);
+
+
+        }
+
+
+        return results;
     }
 
 
